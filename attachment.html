@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPA Matching Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Arial', sans-serif;
+        }
+
+        body {
+            background-color: #f0f8ff;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .header {
+            text-align: center;
+            padding: 20px;
+            background-color: #4b86b4;
+            color: white;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            padding: 15px;
+            background-color: #e1f5fe;
+            flex-wrap: wrap;
+        }
+
+        .schedule-selector {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .schedule-btn {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 20px;
+            background-color: #4b86b4;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .schedule-btn:hover {
+            background-color: #3a6d94;
+            transform: scale(1.05);
+        }
+
+        .schedule-btn.active {
+            background-color: #2e7d32;
+            box-shadow: 0 0 10px rgba(46, 125, 50, 0.5);
+        }
+
+        .start-btn {
+            padding: 10px 25px;
+            background-color: #2e7d32;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: none;
+        }
+
+        .start-btn:hover {
+            background-color: #1b5e20;
+            transform: scale(1.05);
+        }
+
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 180px);
+        }
+
+        .questions-section {
+            flex: 1;
+            position: relative;
+            border-bottom: 2px dashed #4b86b4;
+            overflow: hidden;
+        }
+
+        .answers-section {
+            flex: 1;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-content: center;
+            gap: 15px;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .question-card {
+            position: absolute;
+            width: 150px;
+            height: 100px;
+            background-color: #e1f5fe;
+            border-radius: 10px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s, opacity 0.5s ease;
+            font-size: 14px;
+            border: 2px solid #4b86b4;
+            user-select: none;
+        }
+
+        .question-card:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .question-card.matched {
+            background-color: #c8e6c9;
+            border-color: #2e7d32;
+            box-shadow: 0 0 15px #2e7d32;
+        }
+
+        .question-card.highlighted {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(1.5);
+            z-index: 1000;
+            transition: all 0.5s ease;
+            width: 300px;
+            height: auto;
+            min-height: 200px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .question-card.highlighted::before {
+            content: attr(data-student);
+            display: block;
+            font-size: 24px;
+            font-weight: bold;
+            color: #2e7d32;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #4b86b4;
+            width: 100%;
+            text-align: center;
+        }
+
+        .question-card.beginner {
+            background-color: #fff8e1;
+            border-color: #ffa000;
+        }
+
+        .question-card.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .answer-card {
+            width: 120px;
+            height: 120px;
+            perspective: 1000px;
+            cursor: pointer;
+            transition: opacity 0.5s ease;
+        }
+
+        .answer-card.next-in-turn {
+            box-shadow: 0 0 15px #ff9800;
+        }
+
+        .card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            transition: transform 0.8s;
+            transform-style: preserve-3d;
+        }
+
+        .answer-card.flipped .card-inner {
+            transform: rotateY(180deg);
+        }
+
+        .card-front, .card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            padding: 10px;
+        }
+
+        .card-front {
+            background-color: #4b86b4;
+            color: white;
+            font-size: 48px;
+            font-weight: bold;
+        }
+
+        .card-back {
+            background-color: #e1f5fe;
+            color: #333;
+            transform: rotateY(180deg);
+            font-size: 18px;
+            font-weight: bold;
+            border: 2px solid #4b86b4;
+            flex-direction: column;
+        }
+
+        .card-back.beginner {
+            background-color: #fff8e1;
+            border-color: #ffa000;
+        }
+
+        .student-score {
+            font-size: 24px;
+            color: #2e7d32;
+            font-weight: bold;
+            animation: scoreBounce 0.5s ease-out;
+            display: inline-block;
+        }
+
+        .student-name {
+            margin-top: 5px;
+            font-size: 16px;
+        }
+
+        .answer-card.flying {
+            position: fixed;
+            z-index: 100;
+            pointer-events: none;
+            transition: transform 0.5s linear;
+        }
+
+        .answer-card.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0) rotate(0deg);
+            }
+            50% {
+                transform: translateY(-20px) rotate(2deg);
+            }
+        }
+
+        @keyframes scoreBounce {
+            0% {
+                transform: scale(0.5);
+                opacity: 0;
+            }
+            50% {
+                transform: scale(1.2);
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .floating {
+            animation: float 4s ease-in-out infinite;
+        }
+
+        .score-display {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #4b86b4;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 18px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Responsive styles */
+        @media (max-width: 768px) {
+            .game-container {
+                height: calc(100vh - 220px);
+            }
+            
+            .question-card {
+                width: 120px;
+                height: 80px;
+                font-size: 12px;
+            }
+            
+            .answer-card {
+                width: 90px;
+                height: 90px;
+            }
+            
+            .card-front {
+                font-size: 36px;
+            }
+            
+            .card-back {
+                font-size: 14px;
+            }
+            
+            .student-score {
+                font-size: 20px;
+            }
+            
+            .student-name {
+                font-size: 12px;
+            }
+            
+            .question-card.highlighted {
+                width: 250px;
+                min-height: 150px;
+                font-size: 18px;
+            }
+            
+            .question-card.highlighted::before {
+                font-size: 20px;
+                margin-bottom: 10px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .question-card {
+                width: 100px;
+                height: 70px;
+                font-size: 10px;
+            }
+            
+            .answer-card {
+                width: 80px;
+                height: 80px;
+            }
+            
+            .card-front {
+                font-size: 30px;
+            }
+            
+            .card-back {
+                font-size: 12px;
+            }
+            
+            .student-score {
+                font-size: 18px;
+            }
+            
+            .student-name {
+                font-size: 10px;
+            }
+            
+            .question-card.highlighted {
+                width: 200px;
+                min-height: 120px;
+                font-size: 16px;
+                transform: translate(-50%, -50%) scale(1.2);
+            }
+            
+            .question-card.highlighted::before {
+                font-size: 18px;
+                margin-bottom: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>IPA Matching Game</h1>
+        <p>Match students with English questions by clicking on the IPA cards</p>
+    </div>
+
+    <div class="controls">
+        <div class="schedule-selector">
+            <button class="schedule-btn" data-schedule="A">Schedule A (7-8 PM)</button>
+            <button class="schedule-btn" data-schedule="B">Schedule B (9-10 PM)</button>
+        </div>
+        <button class="start-btn" id="startGame">Start Game</button>
+    </div>
+
+    <div class="game-container">
+        <div class="questions-section" id="questionsSection"></div>
+        <div class="answers-section" id="answersSection"></div>
+    </div>
+
+    <div class="score-display">
+        Matches: <span id="score">0</span>/<span id="totalQuestions">0</span>
+    </div>
+
+    <audio id="matchSound" src="https://assets.mixkit.co/sfx/preview/mixkit-correct-answer-tone-2870.mp3" preload="auto"></audio>
+    <audio id="flipSound" src="https://assets.mixkit.co/sfx/preview/mixkit-plastic-tap-1929.mp3" preload="auto"></audio>
+
+    <script>
+        // Game Data
+        const gameData = {
+            beginnerQuestions: [
+                "What is your name?",
+                "How old are you?",
+                "Where do you live?",
+                "What is your favorite color?",
+                "Do you have any brothers or sisters?",
+                "What food do you like?",
+                "What is your favorite animal?",
+                "Can you speak English?",
+                "What time do you wake up?",
+                "What is your job?",
+                "What is your favorite fruit?",
+                "Do you like sports?",
+                "What is your favorite movie?",
+                "How many people are in your family?",
+                "What time do you go to bed?",
+                "What is your favorite season?",
+                "Do you have any pets?",
+                "What is your hobby?",
+                "What is your favorite subject?",
+                "What do you like to do on weekends?"
+            ],
+            intermediateQuestions: [
+                "What's your favorite food and why do you like it?",
+                "How do you usually greet people in your culture?",
+                "What time do you usually wake up and what's your morning routine?",
+                "What did you do last weekend that was interesting?",
+                "What's your favorite season and what do you like to do during that time?",
+                "Do you have any pets? Tell me about them.",
+                "What's your dream job and why does it interest you?",
+                "What's your favorite movie and what's it about?",
+                "How many siblings do you have and what are they like?",
+                "What's your favorite color and does it have any special meaning to you?",
+                "Can you play any musical instruments? How did you learn?",
+                "What's your favorite book and why would you recommend it?",
+                "If you could have any superpower, what would you choose and how would you use it?",
+                "What's your favorite holiday and how do you celebrate it?",
+                "What's your favorite sport to watch or play? What do you like about it?",
+                "If you could visit any country, where would you go and what would you do there?",
+                "What's your favorite type of music and who is your favorite artist?",
+                "What's something you're really good at? How did you develop that skill?",
+                "What's your favorite thing to do on weekends to relax?",
+                "What's your favorite animal and what do you find interesting about it?",
+                "Describe your perfect day from morning to night.",
+                "What's the most interesting place you've ever visited and why?",
+                "If you could have dinner with any historical figure, who would it be and why?",
+                "What's the most challenging thing you've ever done and what did you learn from it?",
+                "How would you describe your personality to someone who's never met you?"
+            ],
+            scheduleA: [
+                "Kean Kimhour", "Biya", "Daly", "Sreng Kimheang", "Sreng Kimheang", 
+                "Venerable Oudom", "Biya", "Vannak Sophary", "Sroeun Sophea", "Kompheak", 
+                "Noa Neng", "Sroeun Sophea", "Mo Samnang", "Kean Kimhour", "Daly",
+                "Biya", "Sreng Kimheang", "Daly", "Sroeun Sophea", "Biya"
+            ],
+            scheduleB: [
+                "Vatana", "Channy", "Vouch Neang", "Sarita Yin", "Thy Vibol", "Vanna", "Ponleu",
+                "Ran Piseth", "Chanrachna Oum", "Sean Lavy", "Ban Sophea", 
+                "Phat Khemcheat", "Yon Thavika", "Chinyu Chea", "Hor Kimheang", 
+                "Sivkeang Chhay", "Vouch Neang", "Ran Piseth", "Chanrachna Oum", "Sarita Yin"
+            ],
+            beginnerStudents: {
+                A: ["Venerable Oudom", "Mo Samnang", "Venerable Oudom", "Mo Samnang"],
+                B: ["Phat Khemcheat", "Vanna", "Ponleu", "Vanna", "Ponleu"]
+            },
+            ipaSymbols: [
+               "f", "f", "n", "n", "r", 
+"s", "ʒ", "ʤ", "w", "z", 
+"ʧ", "s", "ʤ", "k", "v", 
+"ŋ", "ʃ", "θ", "ð", "ʒ", 
+"d", "t", "ʍ", "k", "g", 
+"b", "v", "z", "s", "ʧ", 
+"m", "n", "r", "l", "h", 
+"f", "j", "w", "ʤ", "x", 
+"d", "t", "dʒ", "g", "m", 
+"ŋ", "ʃ", "θ", "ð", "ʒ"
+            ]
+        };
+
+        // Game State
+        let score = 0;
+        let currentHighlightedPair = null;
+        let matchedPairs = new Set();
+        let currentSchedule = null;
+        let currentStudents = [];
+        let currentQuestions = [];
+        let studentScores = {};
+        let currentRoundStudents = [];
+        let currentRoundIndex = 0;
+        const flipSound = document.getElementById('flipSound');
+        const matchSound = document.getElementById('matchSound');
+
+        // DOM Elements
+        const scheduleButtons = document.querySelectorAll('.schedule-btn');
+        const startButton = document.getElementById('startGame');
+        const questionsSection = document.getElementById('questionsSection');
+        const answersSection = document.getElementById('answersSection');
+        const scoreDisplay = document.getElementById('score');
+        const totalQuestionsDisplay = document.getElementById('totalQuestions');
+
+        // Event Listeners
+        scheduleButtons.forEach(button => {
+            button.addEventListener('click', () => selectSchedule(button.dataset.schedule));
+        });
+
+        startButton.addEventListener('click', initGame);
+
+        // Initialize the game
+        function initGame() {
+            // Reset game state
+            score = 0;
+            matchedPairs = new Set();
+            currentHighlightedPair = null;
+            scoreDisplay.textContent = '0';
+            
+            // Clear previous cards
+            questionsSection.innerHTML = '';
+            answersSection.innerHTML = '';
+            
+            // Create question and answer cards
+            createQuestionCards();
+            createAnswerCards();
+            
+            // Update total questions display
+            totalQuestionsDisplay.textContent = currentQuestions.length;
+        }
+
+        // Select schedule
+        function selectSchedule(schedule) {
+            currentSchedule = schedule;
+            
+            // Update active button
+            scheduleButtons.forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.schedule === schedule);
+            });
+            
+            // Set current students based on schedule
+            currentStudents = schedule === 'A' ? [...gameData.scheduleA] : [...gameData.scheduleB];
+            
+            // Generate and store random scores for this session
+            currentStudents.forEach(student => {
+                if (!studentScores[student]) {
+                    const score = `+${Math.floor(Math.random() * 6) + 5}`; // +5 to +10
+                    studentScores[student] = {
+                        score,
+                        baseName: student
+                    };
+                }
+            });
+            
+            // Reset round tracking
+            currentRoundStudents = [...currentStudents];
+            shuffleArray(currentRoundStudents);
+            currentRoundIndex = 0;
+            
+            // Show start button
+            startButton.style.display = 'block';
+        }
+
+        // Create question cards with floating animation
+        function createQuestionCards() {
+            // Determine which questions to use based on beginner status
+            currentQuestions = [];
+            
+            // Create a pool of questions for this game
+            const beginnerPool = [...gameData.beginnerQuestions];
+            const intermediatePool = [...gameData.intermediateQuestions];
+            
+            // Shuffle the pools
+            shuffleArray(beginnerPool);
+            shuffleArray(intermediatePool);
+            
+            // Assign questions to students
+            currentStudents.forEach(student => {
+                const isBeginner = gameData.beginnerStudents[currentSchedule]?.includes(student) || false;
+                const questionPool = isBeginner ? beginnerPool : intermediatePool;
+                
+                // Assign 2-3 questions per student
+                const questionCount = Math.floor(Math.random() * 2) + 2;
+                
+                for (let i = 0; i < questionCount && questionPool.length > 0; i++) {
+                    const question = questionPool.pop();
+                    if (question) {
+                        currentQuestions.push({
+                            text: question,
+                            student: student,
+                            isBeginner: isBeginner
+                        });
+                    }
+                }
+            });
+            
+            // Create cards for each question
+            const containerWidth = questionsSection.offsetWidth;
+            const containerHeight = questionsSection.offsetHeight;
+            const cardWidth = 150;
+            const cardHeight = 100;
+            const padding = 20;
+            
+            // Calculate grid columns and rows based on container size
+            const cols = Math.max(1, Math.floor(containerWidth / (cardWidth + padding * 2)));
+            const rows = Math.max(1, Math.floor(containerHeight / (cardHeight + padding * 2)));
+            
+            // Position cards in a grid with random offsets to prevent perfect alignment
+            currentQuestions.forEach((question, index) => {
+                const card = document.createElement('div');
+                card.className = `question-card floating ${question.isBeginner ? 'beginner' : ''}`;
+                card.textContent = question.text;
+                card.dataset.index = index;
+                card.dataset.student = question.student;
+                
+                // Calculate grid position with padding
+                const col = index % cols;
+                const row = Math.floor(index / cols) % rows;
+                
+                // Add some randomness to positions within their grid cell
+                const randomX = Math.random() * padding - padding/2;
+                const randomY = Math.random() * padding - padding/2;
+                
+                // Calculate position ensuring cards stay within container
+                const left = Math.max(padding, Math.min(
+                    (col * (cardWidth + padding * 2)) + padding + randomX,
+                    containerWidth - cardWidth - padding
+                ));
+                
+                const top = Math.max(padding, Math.min(
+                    (row * (cardHeight + padding * 2)) + padding + randomY,
+                    containerHeight - cardHeight - padding
+                ));
+                
+                card.style.left = `${left}px`;
+                card.style.top = `${top}px`;
+                
+                // Random animation duration and delay
+                const duration = Math.random() * 3 + 3; // 3-6 seconds
+                const delay = Math.random() * 5; // 0-5 seconds
+                
+                card.style.animationDuration = `${duration}s`;
+                card.style.animationDelay = `${delay}s`;
+                
+                questionsSection.appendChild(card);
+            });
+        }
+
+        // Create answer cards with flip animation
+        function createAnswerCards() {
+            // Use our round-robin students for fair distribution
+            const studentsForRound = [...currentRoundStudents];
+            
+            // If we've gone through all students, reshuffle for new round
+            if (currentRoundIndex >= studentsForRound.length) {
+                shuffleArray(studentsForRound);
+                currentRoundIndex = 0;
+            }
+            
+            // Create cards for all students
+            studentsForRound.forEach((student, index) => {
+                const studentData = studentScores[student] || { score: '+5', baseName: student };
+                const isBeginner = gameData.beginnerStudents[currentSchedule]?.includes(student) || false;
+                
+                const card = document.createElement('div');
+                card.className = 'answer-card';
+                if (index === currentRoundIndex) {
+                    card.classList.add('next-in-turn');
+                }
+                card.dataset.student = student;
+                card.dataset.isBeginner = isBeginner;
+                
+                // Use modulo to cycle through IPA symbols if there are more students than symbols
+                const ipaIndex = index % gameData.ipaSymbols.length;
+                
+                card.innerHTML = `
+                    <div class="card-inner">
+                        <div class="card-front">${gameData.ipaSymbols[ipaIndex]}</div>
+                        <div class="card-back ${isBeginner ? 'beginner' : ''}">
+                            <span class="student-score">${studentData.score}</span>
+                            <span class="student-name">${studentData.baseName}</span>
+                        </div>
+                    </div>
+                `;
+                
+                card.addEventListener('click', handleCardClick);
+                answersSection.appendChild(card);
+            });
+        }
+
+        // Handle card click event
+        function handleCardClick(event) {
+            const card = event.currentTarget;
+            
+            // If card is already flipped or flying, ignore click
+            if (card.classList.contains('flipped') || card.classList.contains('flying')) {
+                return;
+            }
+            
+            // Remove previous matched pair if exists
+            if (currentHighlightedPair) {
+                removeMatchedPair(currentHighlightedPair.questionCard, currentHighlightedPair.answerCard);
+                currentHighlightedPair = null;
+            }
+            
+            // Play flip sound
+            flipSound.currentTime = 0;
+            flipSound.play();
+            
+            // Flip the card
+            card.classList.add('flipped');
+            
+            // Update turn tracking
+            const studentName = card.dataset.student;
+            const studentIndex = currentRoundStudents.indexOf(studentName);
+            if (studentIndex >= 0) {
+                currentRoundIndex = (studentIndex + 1) % currentRoundStudents.length;
+            }
+            
+            // After flip animation completes, fly to a question
+            setTimeout(() => {
+                flyCardToQuestion(card);
+            }, 800);
+        }
+
+        // Fly card to a random question
+        function flyCardToQuestion(card) {
+            const studentName = card.dataset.student;
+            const isBeginner = card.dataset.isBeginner === 'true';
+            
+            // Find all unmatched questions that match this student's level
+            const eligibleQuestions = Array.from(document.querySelectorAll('.question-card:not(.matched)'))
+                .filter(qCard => {
+                    const qIsBeginner = qCard.classList.contains('beginner');
+                    return (isBeginner ? qIsBeginner : !qIsBeginner) && 
+                           qCard.dataset.student === studentName;
+                });
+            
+            if (eligibleQuestions.length === 0) return;
+            
+            // Pick a random eligible question
+            const randomIndex = Math.floor(Math.random() * eligibleQuestions.length);
+            const targetQuestion = eligibleQuestions[randomIndex];
+            
+            // Get positions
+            const cardRect = card.getBoundingClientRect();
+            const targetRect = targetQuestion.getBoundingClientRect();
+            
+            // Convert to flying state
+            card.classList.add('flying');
+            card.style.left = `${cardRect.left}px`;
+            card.style.top = `${cardRect.top}px`;
+            card.style.width = `${cardRect.width}px`;
+            card.style.height = `${cardRect.height}px`;
+            
+            // Create a fun flight path with multiple waypoints
+            const waypoints = createFlightPath(cardRect, targetRect);
+            
+            // Animate through waypoints
+            animateFlight(card, waypoints, targetQuestion);
+        }
+
+        // Create a fun flight path with waypoints
+        function createFlightPath(startRect, endRect) {
+            const waypoints = [];
+            const steps = 5;
+            
+            // Add some random deviation to the path
+            const deviationX = (Math.random() - 0.5) * 300;
+            const deviationY = (Math.random() - 0.5) * 300;
+            
+            for (let i = 0; i <= steps; i++) {
+                const progress = i / steps;
+                const x = startRect.left + (endRect.left - startRect.left) * progress + 
+                         Math.sin(progress * Math.PI) * deviationX;
+                const y = startRect.top + (endRect.top - startRect.top) * progress + 
+                         Math.sin(progress * Math.PI) * deviationY;
+                
+                // Add some rotation for fun
+                const rotation = progress * 720; // Two full rotations
+                
+                waypoints.push({ x, y, rotation });
+            }
+            
+            return waypoints;
+        }
+
+        // Animate the card through the flight path
+        function animateFlight(card, waypoints, targetQuestion) {
+            if (waypoints.length === 0) {
+                completeFlight(card, targetQuestion);
+                return;
+            }
+            
+            const point = waypoints.shift();
+            card.style.transform = `translate(${point.x}px, ${point.y}px) rotate(${point.rotation}deg)`;
+            
+            setTimeout(() => {
+                animateFlight(card, waypoints, targetQuestion);
+            }, 100);
+        }
+
+        // Complete the flight and match with question
+        function completeFlight(card, targetQuestion) {
+            // Play match sound
+            matchSound.currentTime = 0;
+            matchSound.play();
+            
+            // Mark question as matched and highlight it
+            targetQuestion.classList.add('matched', 'highlighted');
+            
+            // Position card exactly over the question
+            const targetRect = targetQuestion.getBoundingClientRect();
+            card.style.transform = `translate(${targetRect.left}px, ${targetRect.top}px) rotate(0deg)`;
+            
+            // Store the current matched pair
+            currentHighlightedPair = {
+                questionCard: targetQuestion,
+                answerCard: card
+            };
+            
+            // Update score
+            score++;
+            scoreDisplay.textContent = score;
+            
+            // Check if all matches are complete
+            if (score === currentQuestions.length) {
+                setTimeout(() => {
+                    alert('Congratulations! You matched all students with questions!');
+                }, 500);
+            }
+        }
+
+        // Remove matched pair with fade-out animation
+        function removeMatchedPair(questionCard, answerCard) {
+            if (!questionCard || !answerCard) return;
+            
+            // Reset question card position before fading out
+            questionCard.style.position = '';
+            questionCard.style.top = '';
+            questionCard.style.left = '';
+            questionCard.style.transform = '';
+            
+            // Add fade-out class to both cards
+            questionCard.classList.add('fade-out');
+            answerCard.classList.add('fade-out');
+            
+            // Remove cards from DOM after animation completes
+            setTimeout(() => {
+                questionCard.remove();
+                answerCard.remove();
+            }, 500);
+        }
+
+        // Utility function to shuffle an array
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+    </script>
+</body>
+</html>
